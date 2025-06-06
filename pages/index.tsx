@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+export const revalidate = 0;
+
 export default function Home() {
   return (
     <div className="bg-background min-h-screen flex flex-col items-center justify-center p-4">
@@ -13,8 +15,9 @@ export default function Home() {
       </header>
 
       <main className="flex flex-col items-center justify-center space-y-6 text-center">
-        <h2 className="text-5xl font-heading text-primary">Welcome to RoomMateMatchr</h2>
-        <p className="text-lg text-muted">Find your ideal roommate without the hassle.</p>
+<h2 className="text-5xl font-heading text-primary">Welcome to RoomMateMatchr 🎉 — Live Test</h2>
+
+        <p className="text-lg text-muted">Your roommate match is just a click away.</p>
 
         <div className="flex space-x-4">
           <Link href="/auth">
@@ -40,4 +43,3 @@ export default function Home() {
     </div>
   );
 }
-// force rebuild

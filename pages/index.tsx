@@ -1,35 +1,60 @@
+import { useSession } from '@supabase/auth-helpers-react';
 import Link from 'next/link';
 
-export const revalidate = 0;
-
 export default function Home() {
+  const session = useSession();
+  const isLoggedIn = !!session;
+
   return (
     <div className="bg-background min-h-screen flex flex-col items-center justify-center p-4">
       <header className="w-full max-w-5xl flex justify-between items-center p-4">
         <h1 className="text-3xl font-heading text-primary">RoomMateMatchr</h1>
         <nav className="space-x-4">
-          <Link href="/browse" className="text-primary hover:underline">Browse</Link>
-          <Link href="/profile" className="text-primary hover:underline">Profile</Link>
-          <Link href="/auth" className="text-primary hover:underline">Login / Sign Up</Link>
+          <Link href="/">
+            <span className="text-primary hover:underline">Home</span>
+          </Link>
+          {isLoggedIn && (
+            <>
+              <Link href="/browse">
+                <span className="text-primary hover:underline">Browse</span>
+              </Link>
+              <Link href="/profile">
+                <span className="text-primary hover:underline">Profile</span>
+              </Link>
+            </>
+          )}
+          {!isLoggedIn && (
+            <Link href="/auth">
+              <span className="text-primary hover:underline">Login / Sign Up</span>
+            </Link>
+          )}
         </nav>
       </header>
 
       <main className="flex flex-col items-center justify-center space-y-6 text-center">
-<h2 className="text-5xl font-heading text-primary">Welcome to RoomMateMatchr 🎉 — Live Test</h2>
-
-        <p className="text-lg text-muted">Your roommate match is just a click away.</p>
+        <h2 className="text-5xl font-heading text-primary">
+          Welcome to RoomMateMatchr
+        </h2>
+        <p className="text-lg text-muted">
+          Your roommate match is just a click away.
+        </p>
 
         <div className="flex space-x-4">
-          <Link href="/auth">
-            <button className="px-6 py-3 rounded-xl bg-primary text-white hover:bg-secondary transition">
-              Login / Sign Up
-            </button>
-          </Link>
-          <Link href="/browse">
-            <button className="px-6 py-3 rounded-xl bg-accent text-white hover:bg-secondary transition">
-              Browse Roommates
-            </button>
-          </Link>
+          {!isLoggedIn ? (
+            <Link href="/auth">
+              <button className="px-6 py-3 rounded-xl bg-primary text-white hover:bg-secondary transition">
+                Login / Sign Up
+              </button>
+            </Link>
+          ) : (
+            <>
+              <Link href="/browse">
+                <button className="px-6 py-3 rounded-xl bg-accent text-white hover:bg-secondary transition">
+                  Browse Roommates
+                </button>
+              </Link>
+            </>
+          )}
         </div>
 
         <p className="text-sm text-muted italic">

@@ -18,6 +18,13 @@ export default function Profile() {
     language: '',
     religion: '',
     bio: '',
+    profession: '',
+    smoker: false,
+    pets: false,
+    cleanliness: 3,
+    move_in_date: '',
+    contact_email: '',
+    profile_photo_url: '',
   });
 
   const [loading, setLoading] = useState(true);
@@ -56,6 +63,13 @@ export default function Profile() {
           language: data.language || '',
           religion: data.religion || '',
           bio: data.bio || '',
+          profession: data.profession || '',
+          smoker: data.smoker || false,
+          pets: data.pets || false,
+          cleanliness: data.cleanliness || 3,
+          move_in_date: data.move_in_date || '',
+          contact_email: data.contact_email || '',
+          profile_photo_url: data.profile_photo_url || '',
         });
         setGenderLocked(data.gender_locked || false);
       }
@@ -66,8 +80,49 @@ export default function Profile() {
     fetchData();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value, type } = e.target;
+
+    if (type === 'checkbox') {
+      setProfile({ ...profile, [name]: (e.target as HTMLInputElement).checked });
+    } else {
+      setProfile({ ...profile, [name]: value });
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('profile-photos')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      alert('Upload failed: ' + uploadError.message);
+      return;
+    }
+
+    const { data } = supabase.storage.from('profile-photos').getPublicUrl(filePath);
+    const publicUrl = data.publicUrl;
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ profile_photo_url: publicUrl })
+      .eq('id', user.id);
+
+    if (updateError) {
+      alert('Failed to save photo URL: ' + updateError.message);
+    } else {
+      alert('Photo uploaded!');
+      setProfile((prev) => ({ ...prev, profile_photo_url: publicUrl }));
+    }
   };
 
   const handleSave = async () => {
@@ -117,46 +172,15 @@ export default function Profile() {
       <p className="text-muted"><strong>Email:</strong> {user?.email}</p>
       <p className="text-muted"><strong>ID:</strong> {user?.id}</p>
 
-      <input
-        name="full_name"
-        placeholder="Full Name"
-        value={profile.full_name}
-        onChange={handleChange}
-        className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-      />
-      <input
-        name="age"
-        placeholder="Age"
-        type="number"
-        value={profile.age}
-        onChange={handleChange}
-        className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-      />
-      <select
-        name="gender"
-        value={profile.gender}
-        onChange={handleChange}
-        disabled={genderLocked}
-        className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-      >
+      <input name="full_name" placeholder="Full Name" value={profile.full_name} onChange={handleChange} className="input-style" />
+      <input name="age" placeholder="Age" type="number" value={profile.age} onChange={handleChange} className="input-style" />
+      <select name="gender" value={profile.gender} onChange={handleChange} disabled={genderLocked} className="input-style">
         <option value="">Select Gender</option>
         <option value="Male">Male</option>
         <option value="Female">Female</option>
       </select>
-      <input
-        name="budget"
-        placeholder="Budget (€)"
-        type="number"
-        value={profile.budget}
-        onChange={handleChange}
-        className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-      />
-      <select
-        name="area"
-        value={profile.area}
-        onChange={handleChange}
-        className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-      >
+      <input name="budget" placeholder="Budget (€)" type="number" value={profile.budget} onChange={handleChange} className="input-style" />
+      <select name="area" value={profile.area} onChange={handleChange} className="input-style">
         <option value="">Select Area</option>
         <option value="Blanchardstown">Blanchardstown</option>
         <option value="Tallaght">Tallaght</option>
@@ -169,12 +193,7 @@ export default function Profile() {
         <option value="Donnybrook">Donnybrook</option>
         <option value="Rathmines">Rathmines</option>
       </select>
-      <select
-        name="language"
-        value={profile.language}
-        onChange={handleChange}
-        className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-      >
+      <select name="language" value={profile.language} onChange={handleChange} className="input-style">
         <option value="">Select Language</option>
         <option value="English">English</option>
         <option value="Mandarin">Mandarin</option>
@@ -187,12 +206,7 @@ export default function Profile() {
         <option value="Portuguese">Portuguese</option>
         <option value="Urdu">Urdu</option>
       </select>
-      <select
-        name="religion"
-        value={profile.religion}
-        onChange={handleChange}
-        className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-      >
+      <select name="religion" value={profile.religion} onChange={handleChange} className="input-style">
         <option value="">Select Religion</option>
         <option value="Christianity">Christianity</option>
         <option value="Islam">Islam</option>
@@ -202,20 +216,34 @@ export default function Profile() {
         <option value="No Religion">No Religion</option>
         <option value="Other">Other</option>
       </select>
-      <textarea
-        name="bio"
-        placeholder="Write something about yourself..."
-        value={profile.bio}
-        onChange={handleChange}
-        className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-        rows={5}
+      <textarea name="bio" placeholder="Write something about yourself..." value={profile.bio} onChange={handleChange} className="input-style" rows={5} />
+
+      <input name="profession" placeholder="Profession" value={profile.profession} onChange={handleChange} className="input-style" />
+      <label className="flex items-center space-x-2">
+        <input name="smoker" type="checkbox" checked={profile.smoker} onChange={handleChange} />
+        <span>Do you smoke?</span>
+      </label>
+      <label className="flex items-center space-x-2">
+        <input name="pets" type="checkbox" checked={profile.pets} onChange={handleChange} />
+        <span>Do you have pets?</span>
+      </label>
+      <label>
+        Cleanliness (1 = Messy, 5 = Very Tidy):
+        <input name="cleanliness" type="range" min={1} max={5} value={profile.cleanliness} onChange={handleChange} className="w-full" />
+      </label>
+      <input name="move_in_date" type="date" value={profile.move_in_date} onChange={handleChange} className="input-style" />
+      <input name="contact_email" placeholder="Contact Email" value={profile.contact_email} onChange={handleChange} className="input-style" />
+
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="w-full border p-3 rounded-xl"
       />
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full bg-primary text-white py-3 rounded-xl hover:bg-secondary transition"
-      >
+      <input name="profile_photo_url" placeholder="Profile Photo URL" value={profile.profile_photo_url} onChange={handleChange} className="input-style" />
+
+      <button onClick={handleSave} disabled={saving} className="w-full bg-primary text-white py-3 rounded-xl hover:bg-secondary transition">
         {saving ? 'Saving...' : 'Save Profile'}
       </button>
     </div>

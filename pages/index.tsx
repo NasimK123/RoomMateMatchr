@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
-
+import Link from 'next/link';
 export default function Home() {
   const router = useRouter();
   const session = useSession();
@@ -37,11 +37,11 @@ export default function Home() {
         <h2 className="text-5xl font-heading text-primary">Welcome to RoomMateMatchr 🎉</h2>
         <p className="text-lg text-muted">Your roommate match is just a click away.</p>
 
-        <a href="/auth">
-          <button className="px-6 py-3 rounded-xl bg-primary text-white hover:bg-secondary transition">
-            Login / Sign Up
-          </button>
-        </a>
+        <Link href="/auth">
+  <button className="px-6 py-3 rounded-xl bg-primary text-white hover:bg-secondary transition">
+    Login / Sign Up
+  </button>
+</Link>
 
         <p className="text-sm text-muted italic">
           Safe, secure, and hassle-free. Built with love for the Dublin community.

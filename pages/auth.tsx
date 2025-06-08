@@ -1,20 +1,22 @@
-import { useEffect, useState } from 'react';
-import { useSession } from '@supabase/auth-helpers-react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
 
 export default function AuthPage() {
-  const session = useSession();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // ✅ Redirect logged-in users
+  // ✅ Check session manually on load
   useEffect(() => {
-    if (session) {
-      router.push('/browse');
-    }
-  }, [session]);
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        router.push('/browse');
+      }
+    };
+    checkSession();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

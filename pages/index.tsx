@@ -1,32 +1,25 @@
 import { useEffect, useState } from 'react';
+import { useSession } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/router';
-import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
 import Link from 'next/link';
+
 export default function Home() {
-  const router = useRouter();
   const session = useSession();
-  const supabase = useSupabaseClient();
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    if (session === null) {
+      // Not logged in, show the landing page
+      setLoading(false);
+    } else if (session) {
+      // Logged in, redirect to /browse
+      router.push('/browse');
+    }
+  }, [session]);
 
-      if (session) {
-        router.push('/browse');
-      } else {
-        setCheckingAuth(false); // Not logged in, show homepage
-      }
-    };
+  if (loading) return <p className="text-primary text-lg p-4">Loading...</p>;
 
-    check();
-  }, [supabase, router]);
-
-  if (checkingAuth) {
-    return <p className="text-primary text-lg p-4">Loading...</p>;
-  }
-
-  // Regular homepage content if not logged in:
   return (
     <div className="bg-background min-h-screen flex flex-col items-center justify-center p-4">
       <header className="w-full max-w-5xl flex justify-between items-center p-4">
@@ -37,11 +30,13 @@ export default function Home() {
         <h2 className="text-5xl font-heading text-primary">Welcome to RoomMateMatchr 🎉</h2>
         <p className="text-lg text-muted">Your roommate match is just a click away.</p>
 
-        <Link href="/auth">
-  <button className="px-6 py-3 rounded-xl bg-primary text-white hover:bg-secondary transition">
-    Login / Sign Up
-  </button>
-</Link>
+        <div className="flex space-x-4">
+          <Link href="/auth">
+            <button className="px-6 py-3 rounded-xl bg-primary text-white hover:bg-secondary transition">
+              Login / Sign Up
+            </button>
+          </Link>
+        </div>
 
         <p className="text-sm text-muted italic">
           Safe, secure, and hassle-free. Built with love for the Dublin community.

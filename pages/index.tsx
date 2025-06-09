@@ -1,24 +1,14 @@
-import { useEffect, useState } from 'react';
 import { useSession } from '@supabase/auth-helpers-react';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { supabase } from '../supabaseClient';
 
 export default function Home() {
   const session = useSession();
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (session === null) {
-      // Not logged in, show the landing page
-      setLoading(false);
-    } else if (session) {
-      // Logged in, redirect to /browse
-      router.push('/browse');
-    }
-  }, [session]);
-
-  if (loading) return <p className="text-primary text-lg p-4">Loading...</p>;
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) alert('Logout failed');
+  };
 
   return (
     <div className="bg-background min-h-screen flex flex-col items-center justify-center p-4">
@@ -31,11 +21,27 @@ export default function Home() {
         <p className="text-lg text-muted">Your roommate match is just a click away.</p>
 
         <div className="flex space-x-4">
-          <Link href="/auth">
-            <button className="px-6 py-3 rounded-xl bg-primary text-white hover:bg-secondary transition">
-              Login / Sign Up
-            </button>
-          </Link>
+          {!session ? (
+            <Link href="/auth">
+              <button className="px-6 py-3 rounded-xl bg-primary text-white hover:bg-secondary transition">
+                Login / Sign Up
+              </button>
+            </Link>
+          ) : (
+            <>
+              <Link href="/browse">
+                <button className="px-6 py-3 rounded-xl bg-primary text-white hover:bg-secondary transition">
+                  Browse Roommates
+                </button>
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="px-6 py-3 rounded-xl bg-secondary text-white hover:bg-accent transition"
+              >
+                Logout
+              </button>
+            </>
+          )}
         </div>
 
         <p className="text-sm text-muted italic">

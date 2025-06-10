@@ -1,14 +1,35 @@
+import { useEffect, useState } from 'react';
 import { useSession } from '@supabase/auth-helpers-react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { supabase } from '../supabaseClient';
 
 export default function Home() {
   const session = useSession();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  // Confirm session is real before redirecting
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user && session.user.email) {
+        router.push('/browse');
+      } else {
+        setLoading(false);
+      }
+    };
+    checkSession();
+  }, []);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) alert('Logout failed');
   };
+
+  if (loading) {
+    return <p className="text-primary text-lg p-4">Loading...</p>;
+  }
 
   return (
     <div className="bg-background min-h-screen flex flex-col items-center justify-center p-4">

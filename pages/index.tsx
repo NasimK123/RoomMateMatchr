@@ -9,18 +9,7 @@ export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
-  // Confirm session is real before redirecting
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && session.user && session.user.email) {
-        router.push('/browse');
-      } else {
-        setLoading(false);
-      }
-    };
-    checkSession();
-  }, []);
+  
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();

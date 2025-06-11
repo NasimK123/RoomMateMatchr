@@ -1,11 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useSession } from '@supabase/auth-helpers-react';
 import { supabase } from '../supabaseClient';
 
 export default function AuthPage() {
+  const session = useSession();
+  const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+
+  // ✅ Redirect if session exists (after magic link)
+  useEffect(() => {
+    if (session) {
+      router.replace('/'); // back to homepage where "Browse" + "Logout" appear
+    }
+  }, [session]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

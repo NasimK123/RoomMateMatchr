@@ -14,6 +14,7 @@ export default function AuthPage() {
 
   // ✅ Redirect if session exists (after magic link)
   useEffect(() => {
+    console.log('Session from useEffect:', session);
     if (session) {
       router.replace('/'); // back to homepage where "Browse" + "Logout" appear
     }

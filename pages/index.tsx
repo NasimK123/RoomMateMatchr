@@ -1,14 +1,14 @@
+import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useEffect, useState } from 'react';
-import { useSession } from '@supabase/auth-helpers-react';
 import Link from 'next/link';
-import { supabase } from '../supabaseClient';
 
 export default function Home() {
   const session = useSession();
+  const supabase = useSupabaseClient();
   const [loading, setLoading] = useState(true);
 
-  // Set loading to false once session is resolved
   useEffect(() => {
+    // Once session is known (either null or object), stop loading
     setLoading(false);
   }, [session]);
 
@@ -17,9 +17,7 @@ export default function Home() {
     if (error) alert('Logout failed');
   };
 
-  if (loading) {
-    return <p className="text-primary text-lg p-4">Loading...</p>;
-  }
+  if (loading) return <p className="text-primary text-lg p-4">Loading...</p>;
 
   return (
     <div className="bg-background min-h-screen flex flex-col items-center justify-center p-4">

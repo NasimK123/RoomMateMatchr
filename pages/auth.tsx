@@ -9,19 +9,20 @@ export default function AuthPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      console.log('✅ Supabase session on auth page:', data.session);
+  const checkSession = async () => {
+    const { data } = await supabase.auth.getSession();
+    console.log('✅ Supabase session on auth page:', data.session);
 
-      if (data.session) {
-        router.replace('/');
-      } else {
-        setCheckingSession(false); // Now we can show the form
-      }
-    };
+    if (data.session) {
+      router.replace('/');
+    } else {
+      setCheckingSession(false); // allow form display
+    }
+  };
 
-    checkSession();
-  }, []);
+  checkSession();
+}, []);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

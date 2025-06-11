@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useSession } from '@supabase/auth-helpers-react';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { supabase } from '../supabaseClient';
 
 export default function Home() {
   const session = useSession();
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
 
-  
+  // Set loading to false once session is resolved
+  useEffect(() => {
+    setLoading(false);
+  }, [session]);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();

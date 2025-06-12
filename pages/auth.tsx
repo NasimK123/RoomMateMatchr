@@ -6,45 +6,47 @@ export default function AuthPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [message, setMessage] = useState('');
 
+  // Redirect if already logged in
   useEffect(() => {
-  const checkSession = async () => {
-    const { data } = await supabase.auth.getSession();
-    console.log('✅ Supabase session on auth page:', data.session);
-
-    if (data.session) {
-      router.replace('/');
-    } else {
-      setCheckingSession(false); // allow form display
-    }
-  };
-
-  checkSession();
-}, []);
-
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.push('/landing');
+    });
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithOtp({ email });
+    const { error } = await supabase.auth.signInWithOtp({ 
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/callback`,
+      },
+    });
 
     setLoading(false);
     if (error) {
-      alert(error.message);
+      setMessage(error.message);
     } else {
-      alert('Check your email for the magic login link!');
+      setMessage(`Magic link sent to ${email}! Check your inbox.`);
+      // Store email in localStorage to show on callback page
+      localStorage.setItem('tempEmail', email);
+      router.push('/callback');
     }
   };
-
-  if (checkingSession) {
-    return <p className="text-primary text-lg p-4">Checking session...</p>;
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <h1 className="text-3xl font-heading text-primary mb-6">Login</h1>
+      {message && (
+        <p className={`mb-4 p-3 rounded-lg ${
+          message.includes('sent') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {message}
+        </p>
+      )}
       <form onSubmit={handleLogin} className="space-y-4 w-full max-w-md">
         <input
           type="email"
@@ -57,7 +59,7 @@ export default function AuthPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-primary text-white py-3 rounded-xl hover:bg-secondary transition"
+          className="w-full bg-primary text-white py-3 rounded-xl hover:bg-secondary transition disabled:opacity-70"
         >
           {loading ? 'Sending...' : 'Send Magic Link'}
         </button>

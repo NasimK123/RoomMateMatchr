@@ -1,197 +1,380 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
 import LogoutButton from '../components/LogoutButton';
 
+// Types
+interface UserProfile {
+  id: string;
+  full_name: string;
+  age: number;
+  gender: string;
+  budget: number;
+  area: string;
+  language: string;
+  religion: string;
+  profession: string;
+  smoker: boolean;
+  pets: boolean;
+  cleanliness: number;
+  bio?: string;
+  profile_photo_url?: string;
+}
+
+interface Filters {
+  budget: string;
+  area: string;
+  language: string;
+  religion: string;
+  profession: string;
+  smoker: boolean;
+  pets: boolean;
+  cleanliness: string;
+}
+
+const initialFilters: Filters = {
+  budget: '',
+  area: '',
+  language: '',
+  religion: '',
+  profession: '',
+  smoker: false,
+  pets: false,
+  cleanliness: '3', // Default to average cleanliness
+};
+
 export default function BrowsePage() {
   const router = useRouter();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingProfile, setCheckingProfile] = useState(true);
-  const [currentUserGender, setCurrentUserGender] = useState('');
-  const [filters, setFilters] = useState({
-    budget: '',
-    area: '',
-    language: '',
-    religion: '',
-    profession: '',
-    smoker: false,
-    pets: false,
-    cleanliness: '',
-  });
+  const [currentUserGender, setCurrentUserGender] = useState<string>('');
+  const [filters, setFilters] = useState<Filters>(initialFilters);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [page, setPage] = useState(1);
+  const perPage = 10;
 
+  // Check profile and auth status
   useEffect(() => {
-    const checkProfileCompletion = async () => {
-      await new Promise((res) => setTimeout(res, 2000));
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const checkProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) {
         router.push('/auth');
         return;
       }
 
-      const { data, error } = await supabase
+      const { data: profile, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', session.user.id)
         .single();
 
-      if (error || !data) {
-        console.error('Error fetching user profile', error);
+      if (error || !profile?.full_name) {
         router.push('/profile');
         return;
       }
 
-      if (!data.full_name || !data.age || !data.budget || !data.area) {
-        alert('Please complete your profile to browse.');
-        router.push('/profile');
-        return;
-      }
-
-      setCurrentUserGender(data.gender);
+      setCurrentUserGender(profile.gender);
       setCheckingProfile(false);
     };
 
-    checkProfileCompletion();
+    checkProfile();
   }, []);
 
+  // Debounced user fetching
   useEffect(() => {
-    if (currentUserGender) {
-      fetchFilteredUsers();
-    }
-  }, [currentUserGender, filters]);
+    const timer = setTimeout(() => {
+      if (currentUserGender) fetchFilteredUsers();
+    }, 500);
 
-  const fetchFilteredUsers = async () => {
-  setLoading(true);
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    return () => clearTimeout(timer);
+  }, [filters, page, currentUserGender]);
+
+  const fetchFilteredUsers = useCallback(async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+
     if (!session) {
       router.push('/auth');
       return;
     }
 
-    let query = supabase.from('users').select('*').neq('id', session.user.id);
-    query = query.eq('gender', currentUserGender);
+    let query = supabase
+      .from('users')
+      .select('*', { count: 'exact' })
+      .neq('id', session.user.id)
+      .eq('gender', currentUserGender)
+      .range((page - 1) * perPage, page * perPage - 1);
 
-    if (filters.budget) query = query.lte('budget', parseInt(filters.budget));
+    // Apply filters
+    if (filters.budget) query = query.lte('budget', Number(filters.budget));
     if (filters.area) query = query.ilike('area', `%${filters.area}%`);
     if (filters.language) query = query.eq('language', filters.language);
     if (filters.religion) query = query.eq('religion', filters.religion);
     if (filters.profession) query = query.ilike('profession', `%${filters.profession}%`);
     if (filters.smoker) query = query.eq('smoker', false);
     if (filters.pets) query = query.eq('pets', true);
-    if (filters.cleanliness) query = query.gte('cleanliness', parseInt(filters.cleanliness));
+    if (filters.cleanliness) query = query.gte('cleanliness', Number(filters.cleanliness));
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
-      console.error('Error fetching filtered users:', error.message);
+      console.error('Error fetching users:', error);
     } else {
       setUsers(data || []);
+      setTotalUsers(count || 0);
     }
 
     setLoading(false);
+  }, [filters, page, currentUserGender]);
+
+  const handleFilterChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value, type } = e.target;
+    setPage(1); // Reset to first page on filter change
+
+    setFilters(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' 
+        ? (e.target as HTMLInputElement).checked 
+        : value
+    }));
   };
 
-  const handleChange = (
-  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-) => {
-  const { name, value, type } = e.target;
-
-  if (type === 'checkbox') {
-    const checked = (e.target as HTMLInputElement).checked;
-    setFilters((prev) => ({ ...prev, [name]: checked }));
-  } else {
-    setFilters((prev) => ({ ...prev, [name]: value }));
-  }
-};
-
+  const resetFilters = () => {
+    setFilters(initialFilters);
+    setPage(1);
+  };
 
   if (checkingProfile) {
-    return <p className="text-primary text-lg p-4">Checking your profile...</p>;
+    return <div className="p-8 text-center">Verifying your profile...</div>;
   }
 
-  if (loading) return <p className="text-muted text-lg p-4">Loading roommates...</p>;
-
   return (
-    <div className="bg-background p-8 max-w-4xl mx-auto rounded-2xl shadow space-y-6">
-      <h1 className="text-3xl font-heading text-primary mb-4">Browse Roommates</h1>
-      <LogoutButton />
+    <div className="max-w-6xl mx-auto p-4">
+      <header className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-primary">Browse Roommates</h1>
+        <LogoutButton />
+      </header>
 
-      <div className="flex flex-wrap gap-4 mb-6">
-        <input name="budget" type="number" placeholder="Max Budget" value={filters.budget} onChange={handleChange} className="input-style" />
-        <input name="area" type="text" placeholder="Area" value={filters.area} onChange={handleChange} className="input-style" />
-        <input name="profession" type="text" placeholder="Profession" value={filters.profession} onChange={handleChange} className="input-style" />
-        <select name="language" value={filters.language} onChange={handleChange} className="input-style">
-          <option value="">All Languages</option>
-          <option value="English">English</option>
-          <option value="Mandarin">Mandarin</option>
-          <option value="Hindi">Hindi</option>
-          <option value="Spanish">Spanish</option>
-          <option value="Arabic">Arabic</option>
-          <option value="Bengali">Bengali</option>
-          <option value="French">French</option>
-          <option value="Russian">Russian</option>
-          <option value="Portuguese">Portuguese</option>
-          <option value="Urdu">Urdu</option>
-        </select>
-        <select name="religion" value={filters.religion} onChange={handleChange} className="input-style">
-          <option value="">All Religions</option>
-          <option value="Christianity">Christianity</option>
-          <option value="Islam">Islam</option>
-          <option value="Hinduism">Hinduism</option>
-          <option value="Buddhism">Buddhism</option>
-          <option value="Judaism">Judaism</option>
-          <option value="No Religion">No Religion</option>
-          <option value="Other">Other</option>
-        </select>
-        <label className="flex items-center space-x-2">
-          <input type="checkbox" name="smoker" checked={filters.smoker} onChange={handleChange} />
-          <span>No Smokers</span>
-        </label>
-        <label className="flex items-center space-x-2">
-          <input type="checkbox" name="pets" checked={filters.pets} onChange={handleChange} />
-          <span>Pet Friendly</span>
-        </label>
-        <label className="w-full">
-          Minimum Cleanliness
-          <input type="range" name="cleanliness" min={1} max={5} value={filters.cleanliness} onChange={handleChange} className="w-full" />
-        </label>
-      </div>
-
-      <div className="grid gap-6">
-        {users.map((user) => (
-          <div key={user.id} className="p-6 border rounded-2xl shadow bg-white space-y-2 text-center">
-  {user.profile_photo_url ? (
-    <img
-      src={user.profile_photo_url}
-      alt={`${user.full_name}'s profile`}
-      className="w-32 h-32 object-cover rounded-full mx-auto mb-2"
-    />
-  ) : (
-    <div className="w-32 h-32 bg-muted text-white flex items-center justify-center rounded-full mx-auto mb-2 text-sm">
-      No Photo
-    </div>
-  )}
-  <h2 className="text-xl font-heading text-primary">{user.full_name}</h2>
-
-            <p><strong>Gender:</strong> {user.gender}</p>
-            <p><strong>Age:</strong> {user.age}</p>
-            <p><strong>Budget:</strong> €{user.budget}</p>
-            <p><strong>Area:</strong> {user.area}</p>
-            <p><strong>Profession:</strong> {user.profession}</p>
-            <p><strong>Smoker:</strong> {user.smoker ? 'Yes' : 'No'}</p>
-            <p><strong>Pets:</strong> {user.pets ? 'Yes' : 'No'}</p>
-            <p><strong>Cleanliness:</strong> {user.cleanliness}/5</p>
-            <p><strong>Language:</strong> {user.language}</p>
-            <p><strong>Religion:</strong> {user.religion}</p>
-            <p><strong>Bio:</strong> {user.bio}</p>
+      {/* Filter Section */}
+      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FilterInput
+            label="Max Budget"
+            name="budget"
+            type="number"
+            value={filters.budget}
+            onChange={handleFilterChange}
+            placeholder="€1500"
+          />
+          
+          <FilterInput
+            label="Area"
+            name="area"
+            type="text"
+            value={filters.area}
+            onChange={handleFilterChange}
+            placeholder="Downtown"
+          />
+          
+          <FilterSelect
+            label="Language"
+            name="language"
+            value={filters.language}
+            onChange={handleFilterChange}
+            options={[
+              { value: '', label: 'All Languages' },
+              { value: 'English', label: 'English' },
+              { value: 'Spanish', label: 'Spanish' },
+              // Add other languages
+            ]}
+          />
+          
+          <FilterCheckbox
+            label="No Smokers"
+            name="smoker"
+            checked={filters.smoker}
+            onChange={handleFilterChange}
+          />
+          
+          <FilterCheckbox
+            label="Pet Friendly"
+            name="pets"
+            checked={filters.pets}
+            onChange={handleFilterChange}
+          />
+          
+          <FilterRange
+            label={`Cleanliness: ${filters.cleanliness}/5`}
+            name="cleanliness"
+            min={1}
+            max={5}
+            value={filters.cleanliness}
+            onChange={handleFilterChange}
+          />
+        </div>
+        
+        <div className="flex justify-between mt-4">
+          <button
+            onClick={resetFilters}
+            className="text-primary underline"
+          >
+            Reset Filters
+          </button>
+          <div className="text-sm text-gray-500">
+            Showing {users.length} of {totalUsers} roommates
           </div>
-        ))}
+        </div>
       </div>
+
+      {/* Results */}
+      {loading ? (
+        <div className="text-center py-12">Loading...</div>
+      ) : users.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-xl text-gray-500">No matching roommates found</p>
+          <button
+            onClick={resetFilters}
+            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg"
+          >
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {users.map((user) => (
+            <UserCard key={user.id} user={user} />
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalUsers > perPage && (
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-4 py-2 mx-1 border rounded disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="px-4 py-2">
+            Page {page} of {Math.ceil(totalUsers / perPage)}
+          </span>
+          <button
+            onClick={() => setPage(p => p + 1)}
+            disabled={page >= Math.ceil(totalUsers / perPage)}
+            className="px-4 py-2 mx-1 border rounded disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+
+// Componentized UI Elements
+const FilterInput = ({ label, ...props }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+    </label>
+    <input
+      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-primary"
+      {...props}
+    />
+  </div>
+);
+
+const FilterSelect = ({ label, options, ...props }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+    </label>
+    <select
+      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-primary"
+      {...props}
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+const FilterCheckbox = ({ label, ...props }) => (
+  <div className="flex items-center">
+    <input
+      type="checkbox"
+      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+      {...props}
+    />
+    <label className="ml-2 text-sm text-gray-700">{label}</label>
+  </div>
+);
+
+const FilterRange = ({ label, ...props }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+    </label>
+    <input
+      type="range"
+      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+      {...props}
+    />
+  </div>
+);
+
+const UserCard = ({ user }: { user: UserProfile }) => (
+  <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+    <div className="p-4">
+      <div className="flex items-center space-x-4 mb-4">
+        {user.profile_photo_url ? (
+          <img
+            src={user.profile_photo_url}
+            alt={user.full_name}
+            className="w-16 h-16 rounded-full object-cover"
+          />
+        ) : (
+          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+            <span className="text-gray-500">Photo</span>
+          </div>
+        )}
+        <div>
+          <h3 className="font-bold text-lg">{user.full_name}</h3>
+          <p className="text-gray-600">{user.age} years</p>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <DetailItem label="Budget" value={`€${user.budget}`} />
+        <DetailItem label="Area" value={user.area} />
+        <DetailItem label="Profession" value={user.profession} />
+        <DetailItem label="Religion" value={user.religion} />
+        <DetailItem label="Language" value={user.language} />
+        <DetailItem label="Cleanliness" value={`${user.cleanliness}/5`} />
+        <DetailItem label="Smoker" value={user.smoker ? 'Yes' : 'No'} />
+        <DetailItem label="Pets" value={user.pets ? 'Yes' : 'No'} />
+      </div>
+      
+      {user.bio && (
+        <div className="mt-4">
+          <p className="text-gray-700 text-sm">{user.bio}</p>
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+const DetailItem = ({ label, value }: { label: string; value: string }) => (
+  <div>
+    <span className="font-medium text-gray-700">{label}:</span> {value}
+  </div>
+);

@@ -16,6 +16,10 @@ export default function AuthPage() {
     setMessage('');
 
     try {
+      // Clear any existing sessions first
+      await supabase.auth.signOut();
+      sessionStorage.clear();
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -26,14 +30,10 @@ export default function AuthPage() {
 
       if (error) throw error;
 
-      setMessage(`Magic link sent to ${email}! Redirecting...`);
-      localStorage.setItem('tempEmail', email);
+      setMessage(`Magic link sent to ${email}! Check your inbox.`);
+      sessionStorage.setItem('tempEmail', email); // Changed to sessionStorage
       
-      // Redirect to callback page ONLY after successful send
-      setTimeout(() => {
-        router.push('/callback');
-      }, 1500); // Brief delay to show success message
-
+      // No automatic redirect here - user MUST click the magic link
     } catch (error) {
       setMessage(error.message || 'Failed to send magic link');
       console.error('Login error:', error);
@@ -44,7 +44,7 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-sm border border-gray-200"> {/* Clean container */}
+      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-sm border border-gray-200">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Log in</h1>
           <p className="mt-2 text-sm text-gray-600">
@@ -95,6 +95,11 @@ export default function AuthPage() {
             ) : 'Send Magic Link'}
           </button>
         </form>
+
+        {/* Added help text */}
+        <p className="mt-4 text-center text-sm text-gray-500">
+          You must click the magic link in your email to continue
+        </p>
       </div>
     </div>
   );

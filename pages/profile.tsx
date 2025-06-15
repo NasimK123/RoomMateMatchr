@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
 import LogoutButton from '../components/LogoutButton';
+import Image from 'next/image';
 
 // Types
 interface ProfileData {
@@ -395,11 +396,13 @@ export default function Profile() {
             
             {profile.profile_photo_url ? (
               <div className="flex items-center space-x-4">
-                <img
-                  src={profile.profile_photo_url}
-                  alt="Profile"
-                  className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
-                />
+                <Image
+    src={profile.profile_photo_url}
+    alt={`${profile.full_name || 'User'}'s profile`}
+    width={80}  // Matches your original w-20 (20×4 = 80)
+    height={80} // Matches your original h-20
+    className="rounded-full object-cover border-2 border-gray-200"
+  />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Change Photo

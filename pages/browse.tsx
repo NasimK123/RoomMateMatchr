@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
 import LogoutButton from '../components/LogoutButton';
+import Image from 'next/image';
 
 // Types
 interface UserProfile {
@@ -127,7 +128,7 @@ export default function BrowsePage() {
     }
 
     setLoading(false);
-  }, [filters, page, currentUserGender]);
+  }, [filters, page, currentUserGender, router]);
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -337,10 +338,12 @@ const UserCard = ({ user }: { user: UserProfile }) => (
     <div className="p-4">
       <div className="flex items-center space-x-4 mb-4">
         {user.profile_photo_url ? (
-          <img
+          <Image
             src={user.profile_photo_url}
-            alt={user.full_name}
-            className="w-16 h-16 rounded-full object-cover"
+            alt={`${user.full_name}'s profile`}
+            width={64}
+    height={64}
+            className="rounded-full object-cover"
           />
         ) : (
           <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">

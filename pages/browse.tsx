@@ -197,14 +197,14 @@ export default function BrowsePage() {
               { value: 'English', label: 'English' },
               { value: 'Spanish', label: 'Spanish' },
               { value: 'French', label: 'French' },
-              { value: 'German', label: 'German' },
-              { value: 'Italian', label: 'Italian' },
+              { value: 'Hindi', label: 'Hindi' },
+              { value: 'Bengali', label: 'Bengali' },
               { value: 'Portuguese', label: 'Portuguese' },
-              { value: 'Dutch', label: 'Dutch' },
-              { value: 'Polish', label: 'Polish' },
+              { value: 'Indonesian', label: 'Indonesian' },
+              { value: 'Russian', label: 'Russian' },
               { value: 'Arabic', label: 'Arabic' },
               { value: 'Chinese', label: 'Chinese' },
-              { value: 'Other', label: 'Other' },
+          
             ]}
           />
 

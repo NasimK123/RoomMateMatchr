@@ -50,6 +50,7 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(true);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [currentUserGender, setCurrentUserGender] = useState<string>('');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [totalUsers, setTotalUsers] = useState(0);
   const [page, setPage] = useState(1);
@@ -77,6 +78,7 @@ export default function BrowsePage() {
       }
 
       setCurrentUserGender(profile.gender);
+      setCurrentUserId(session.user.id);
       setCheckingProfile(false);
     };
 
@@ -86,11 +88,11 @@ export default function BrowsePage() {
   // Debounced user fetching
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (currentUserGender) fetchFilteredUsers();
+      if (currentUserGender && currentUserId) fetchFilteredUsers();
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [filters, page, currentUserGender]);
+  }, [filters, page, currentUserGender, currentUserId]);
 
   const fetchFilteredUsers = useCallback(async () => {
     setLoading(true);
@@ -104,7 +106,7 @@ export default function BrowsePage() {
     let query = supabase
       .from('users')
       .select('*', { count: 'exact' })
-      .neq('id', session.user.id)
+      .neq('id', currentUserId)
       .eq('gender', currentUserGender)
       .range((page - 1) * perPage, page * perPage - 1);
 
@@ -128,7 +130,7 @@ export default function BrowsePage() {
     }
 
     setLoading(false);
-  }, [filters, page, currentUserGender, router]);
+  }, [filters, page, currentUserGender, currentUserId, router]);
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -147,6 +149,10 @@ export default function BrowsePage() {
   const resetFilters = () => {
     setFilters(initialFilters);
     setPage(1);
+  };
+
+  const handleUserCardClick = (userId: string) => {
+    router.push(`/profile/${userId}`);
   };
 
   if (checkingProfile) {
@@ -190,8 +196,42 @@ export default function BrowsePage() {
               { value: '', label: 'All Languages' },
               { value: 'English', label: 'English' },
               { value: 'Spanish', label: 'Spanish' },
-              // Add other languages
+              { value: 'French', label: 'French' },
+              { value: 'German', label: 'German' },
+              { value: 'Italian', label: 'Italian' },
+              { value: 'Portuguese', label: 'Portuguese' },
+              { value: 'Dutch', label: 'Dutch' },
+              { value: 'Polish', label: 'Polish' },
+              { value: 'Arabic', label: 'Arabic' },
+              { value: 'Chinese', label: 'Chinese' },
+              { value: 'Other', label: 'Other' },
             ]}
+          />
+
+          <FilterSelect
+            label="Religion"
+            name="religion"
+            value={filters.religion}
+            onChange={handleFilterChange}
+            options={[
+              { value: '', label: 'All Religions' },
+              { value: 'Christianity', label: 'Christianity' },
+              { value: 'Islam', label: 'Islam' },
+              { value: 'Judaism', label: 'Judaism' },
+              { value: 'Hinduism', label: 'Hinduism' },
+              { value: 'Buddhism', label: 'Buddhism' },
+              { value: 'Other', label: 'Other' },
+              { value: 'None', label: 'None' },
+            ]}
+          />
+          
+          <FilterInput
+            label="Profession"
+            name="profession"
+            type="text"
+            value={filters.profession}
+            onChange={handleFilterChange}
+            placeholder="Software Engineer"
           />
           
           <FilterCheckbox
@@ -209,7 +249,7 @@ export default function BrowsePage() {
           />
           
           <FilterRange
-            label={`Cleanliness: ${filters.cleanliness}/5`}
+            label={`Min Cleanliness: ${filters.cleanliness}/5`}
             name="cleanliness"
             min={1}
             max={5}
@@ -221,7 +261,7 @@ export default function BrowsePage() {
         <div className="flex justify-between mt-4">
           <button
             onClick={resetFilters}
-            className="text-primary underline"
+            className="text-primary underline hover:text-primary-dark transition"
           >
             Reset Filters
           </button>
@@ -233,42 +273,68 @@ export default function BrowsePage() {
 
       {/* Results */}
       {loading ? (
-        <div className="text-center py-12">Loading...</div>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading roommates...</p>
+        </div>
       ) : users.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-xl text-gray-500">No matching roommates found</p>
+          <p className="text-xl text-gray-500 mb-4">No matching roommates found</p>
+          <p className="text-gray-400 mb-6">Try adjusting your filters to see more results</p>
           <button
             onClick={resetFilters}
-            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg"
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition"
           >
-            Reset Filters
+            Reset All Filters
           </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {users.map((user) => (
-            <UserCard key={user.id} user={user} />
+            <UserCard 
+              key={user.id} 
+              user={user} 
+              onClick={() => handleUserCardClick(user.id)}
+            />
           ))}
         </div>
       )}
 
       {/* Pagination */}
       {totalUsers > perPage && (
-        <div className="flex justify-center mt-8">
+        <div className="flex justify-center items-center mt-8 space-x-2">
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-4 py-2 mx-1 border rounded disabled:opacity-50"
+            className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
           >
             Previous
           </button>
-          <span className="px-4 py-2">
-            Page {page} of {Math.ceil(totalUsers / perPage)}
-          </span>
+          
+          <div className="flex space-x-1">
+            {Array.from({ length: Math.min(5, Math.ceil(totalUsers / perPage)) }, (_, i) => {
+              const pageNum = i + 1;
+              const isActive = pageNum === page;
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  className={`px-3 py-2 rounded-lg transition ${
+                    isActive 
+                      ? 'bg-primary text-white' 
+                      : 'border hover:bg-gray-50'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+          
           <button
             onClick={() => setPage(p => p + 1)}
             disabled={page >= Math.ceil(totalUsers / perPage)}
-            className="px-4 py-2 mx-1 border rounded disabled:opacity-50"
+            className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
           >
             Next
           </button>
@@ -285,7 +351,7 @@ const FilterInput = ({ label, ...props }) => (
       {label}
     </label>
     <input
-      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-primary"
+      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-primary transition"
       {...props}
     />
   </div>
@@ -297,7 +363,7 @@ const FilterSelect = ({ label, options, ...props }) => (
       {label}
     </label>
     <select
-      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-primary"
+      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-primary transition"
       {...props}
     >
       {options.map(opt => (
@@ -327,14 +393,17 @@ const FilterRange = ({ label, ...props }) => (
     </label>
     <input
       type="range"
-      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
       {...props}
     />
   </div>
 );
 
-const UserCard = ({ user }: { user: UserProfile }) => (
-  <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+const UserCard = ({ user, onClick }: { user: UserProfile; onClick: () => void }) => (
+  <div 
+    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1"
+    onClick={onClick}
+  >
     <div className="p-4">
       <div className="flex items-center space-x-4 mb-4">
         {user.profile_photo_url ? (
@@ -342,21 +411,25 @@ const UserCard = ({ user }: { user: UserProfile }) => (
             src={user.profile_photo_url}
             alt={`${user.full_name}'s profile`}
             width={64}
-    height={64}
+            height={64}
             className="rounded-full object-cover"
           />
         ) : (
-          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-            <span className="text-gray-500">Photo</span>
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center">
+            <span className="text-white font-bold text-xl">
+              {user.full_name.charAt(0).toUpperCase()}
+            </span>
           </div>
         )}
         <div>
-          <h3 className="font-bold text-lg">{user.full_name}</h3>
-          <p className="text-gray-600">{user.age} years</p>
+          <h3 className="font-bold text-lg text-gray-800 hover:text-primary transition">
+            {user.full_name}
+          </h3>
+          <p className="text-gray-600">{user.age} years old</p>
         </div>
       </div>
       
-      <div className="grid grid-cols-2 gap-2 text-sm">
+      <div className="grid grid-cols-2 gap-2 text-sm mb-4">
         <DetailItem label="Budget" value={`€${user.budget}`} />
         <DetailItem label="Area" value={user.area} />
         <DetailItem label="Profession" value={user.profession} />
@@ -368,16 +441,21 @@ const UserCard = ({ user }: { user: UserProfile }) => (
       </div>
       
       {user.bio && (
-        <div className="mt-4">
-          <p className="text-gray-700 text-sm">{user.bio}</p>
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-gray-700 text-sm line-clamp-3">{user.bio}</p>
         </div>
       )}
+
+      <div className="mt-4 text-center">
+        <span className="text-primary text-sm font-medium">Click to view full profile →</span>
+      </div>
     </div>
   </div>
 );
 
 const DetailItem = ({ label, value }: { label: string; value: string }) => (
-  <div>
-    <span className="font-medium text-gray-700">{label}:</span> {value}
+  <div className="bg-gray-50 p-2 rounded">
+    <span className="font-medium text-gray-700 text-xs block">{label}</span>
+    <span className="text-sm text-gray-900">{value}</span>
   </div>
 );

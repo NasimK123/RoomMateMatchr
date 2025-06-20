@@ -131,7 +131,7 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto p-4">
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Profile Not Found</h2>
-          <p className="text-gray-600 mb-6">The profile you're looking for doesn't exist.</p>
+          <p className="text-gray-600 mb-6">The profile you&apos;re looking for doesn&apos;t exist.</p>
           <Link 
             href="/browse"
             className="inline-block px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition"

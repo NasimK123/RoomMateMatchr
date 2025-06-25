@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../supabaseClient';
-import LogoutButton from '../components/LogoutButton';
+import { supabase } from '../../supabaseClient';
+import LogoutButton from '../../components/LogoutButton';
 import Image from 'next/image';
 
 // Types

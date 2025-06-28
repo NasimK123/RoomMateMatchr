@@ -30,7 +30,7 @@ export default function Profile() {
   const [genderLocked, setGenderLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const [profile, setProfile] = useState<ProfileData>({
     full_name: '',
@@ -124,63 +124,97 @@ export default function Profile() {
     }));
   };
 
+  // FIXED: Updated image upload function
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
     try {
-      setUploadProgress(0);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `profile-photos/${fileName}`;
+      setUploading(true);
 
-      const { error: uploadError } = await supabase.storage
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please upload a JPG, JPEG, or PNG file');
+        return;
+      }
+
+      // Validate file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('File size must be less than 2MB');
+        return;
+      }
+
+      console.log('Starting upload for user:', user.id);
+
+      // Create file path with user ID as folder (this matches our RLS policy)
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/profile-photo.${fileExt}`;
+
+      console.log('Uploading to path:', fileName);
+
+      // Upload file to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('profile-photos')
-        .upload(filePath, file, {
+        .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: true,
-          contentType: file.type,
+          upsert: true, // This will replace existing file
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
 
+      console.log('Upload successful:', uploadData);
+
+      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('profile-photos')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
+      console.log('Public URL:', publicUrl);
+
+      // Update user profile with new photo URL
       const { error: updateError } = await supabase
         .from('users')
         .update({ profile_photo_url: publicUrl })
         .eq('id', user.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Database update error:', updateError);
+        throw updateError;
+      }
 
+      // Update local state
       setProfile(prev => ({ ...prev, profile_photo_url: publicUrl }));
-      setUploadProgress(null);
-    } catch (error) {
+      
+      console.log('Profile updated successfully');
+
+    } catch (error: any) {
       console.error('Upload failed:', error);
       alert(`Upload failed: ${error.message}`);
-      setUploadProgress(null);
+    } finally {
+      setUploading(false);
     }
   };
 
   const validateProfile = (): boolean => {
-  if (!profile.full_name.trim()) {
-    alert('Full name is required');
-    return false;
-  }
+    if (!profile.full_name.trim()) {
+      alert('Full name is required');
+      return false;
+    }
 
-  const ageNum = Number(profile.age);
-  if (isNaN(ageNum)) {
-    alert('Age must be a number');
-    return false;
-  }
+    const ageNum = Number(profile.age);
+    if (isNaN(ageNum)) {
+      alert('Age must be a number');
+      return false;
+    }
 
-  if (ageNum < 18 || ageNum > 120) {
-    alert('Age must be between 18 and 120');
-    return false;
-  }
-
+    if (ageNum < 18 || ageNum > 120) {
+      alert('Age must be between 18 and 120');
+      return false;
+    }
 
     if (!profile.gender) {
       alert('Please select your gender');
@@ -212,7 +246,7 @@ export default function Profile() {
       if (error) throw error;
 
       router.push('/browse');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Save failed:', error);
       alert(`Save failed: ${error.message}`);
     } finally {
@@ -279,7 +313,6 @@ export default function Profile() {
                 <option value="">Select Gender</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
-                
               </select>
             </div>
           </div>
@@ -348,7 +381,6 @@ export default function Profile() {
                 <option value="">Select Language</option>
                 <option value="English">English</option>
                 <option value="Spanish">Spanish</option>
-                {/* Add other languages */}
               </select>
             </div>
 
@@ -363,7 +395,6 @@ export default function Profile() {
                 <option value="">Select Religion</option>
                 <option value="Christianity">Christianity</option>
                 <option value="Islam">Islam</option>
-                {/* Add other religions */}
               </select>
             </div>
 
@@ -390,64 +421,75 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Profile Photo */}
+          {/* Profile Photo - FIXED SECTION */}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-gray-800">Profile Photo</h2>
             
             {profile.profile_photo_url ? (
               <div className="flex items-center space-x-4">
                 <Image
-    src={profile.profile_photo_url}
-    alt={`${profile.full_name || 'User'}'s profile`}
-    width={80}  // Matches your original w-20 (20×4 = 80)
-    height={80} // Matches your original h-20
-    className="rounded-full object-cover border-2 border-gray-200"
-  />
+                  src={profile.profile_photo_url}
+                  alt={`${profile.full_name || 'User'}'s profile`}
+                  width={80}
+                  height={80}
+                  className="rounded-full object-cover border-2 border-gray-200"
+                />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Change Photo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      id="profile-photo-upload"
-                    />
                   </label>
                   <label
                     htmlFor="profile-photo-upload"
-                    className="cursor-pointer text-sm text-blue-600 hover:text-blue-800"
+                    className={`cursor-pointer text-sm px-3 py-1 rounded border ${
+                      uploading 
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                        : 'text-blue-600 border-blue-600 hover:bg-blue-50'
+                    }`}
                   >
-                    Upload new photo
+                    {uploading ? 'Uploading...' : 'Upload new photo'}
                   </label>
-                  {uploadProgress !== null && (
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                      <div
-                        className="bg-blue-600 h-2.5 rounded-full"
-                        style={{ width: `${uploadProgress}%` }}
-                      ></div>
-                    </div>
-                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="profile-photo-upload"
+                    disabled={uploading}
+                  />
                 </div>
               </div>
             ) : (
               <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                <label 
+                  htmlFor="dropzone-file"
+                  className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg ${
+                    uploading 
+                      ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
+                      : 'border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer'
+                  }`}
+                >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                    </svg>
-                    <p className="mb-2 text-sm text-gray-500">
-                      <span className="font-semibold">Click to upload</span> or drag and drop
-                    </p>
-                    <p className="text-xs text-gray-500">PNG, JPG (MAX. 2MB)</p>
+                    {uploading ? (
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    ) : (
+                      <>
+                        <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                        </svg>
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-semibold">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500">PNG, JPG (MAX. 2MB)</p>
+                      </>
+                    )}
                   </div>
                   <input
                     id="dropzone-file"
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/jpg,image/png"
                     onChange={handleImageUpload}
                     className="hidden"
+                    disabled={uploading}
                   />
                 </label>
               </div>

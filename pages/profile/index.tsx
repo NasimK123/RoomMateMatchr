@@ -125,79 +125,69 @@ export default function Profile() {
   };
 
   // FIXED: Updated image upload function
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+  // inside your Profile component, replace handleImageUpload with this:
+const handleImageUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    try {
-      setUploading(true);
+  setUploading(true);
+  try {
+    // 1️⃣ Re-fetch the logged-in user right before uploading
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser();
 
-      // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-      if (!allowedTypes.includes(file.type)) {
-        alert('Please upload a JPG, JPEG, or PNG file');
-        return;
-      }
-
-      // Validate file size (2MB max)
-      if (file.size > 2 * 1024 * 1024) {
-        alert('File size must be less than 2MB');
-        return;
-      }
-
-      console.log('Starting upload for user:', user.id);
-
-      // Create file path with user ID as folder (this matches our RLS policy)
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/profile-photo.${fileExt}`;
-
-      console.log('Uploading to path:', fileName);
-
-      // Upload file to storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('profile-photos')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true, // This will replace existing file
-        });
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw uploadError;
-      }
-
-      console.log('Upload successful:', uploadData);
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('profile-photos')
-        .getPublicUrl(fileName);
-
-      console.log('Public URL:', publicUrl);
-
-      // Update user profile with new photo URL
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ profile_photo_url: publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) {
-        console.error('Database update error:', updateError);
-        throw updateError;
-      }
-
-      // Update local state
-      setProfile(prev => ({ ...prev, profile_photo_url: publicUrl }));
-      
-      console.log('Profile updated successfully');
-
-    } catch (error: any) {
-      console.error('Upload failed:', error);
-      alert(`Upload failed: ${error.message}`);
-    } finally {
-      setUploading(false);
+    if (!user) {
+      console.error('Upload aborted: user not authenticated', userError);
+      alert('You must be logged in to upload a photo.');
+      return;
     }
-  };
+
+    // 2️⃣ Validate file
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowed.includes(file.type)) {
+      alert('Please upload a JPG, JPEG, or PNG file');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
+      return;
+    }
+
+    // 3️⃣ Build a user-scoped path and upload
+    const ext = file.name.split('.').pop();
+    const path = `${user.id}/profile-photo.${ext}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('profile-photos')
+      .upload(path, file, { cacheControl: '3600', upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    // 4️⃣ Grab the public URL
+    const {
+      data: { publicUrl }
+    } = supabase.storage.from('profile-photos').getPublicUrl(path);
+
+    // 5️⃣ Persist it in your users table
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ profile_photo_url: publicUrl })
+      .eq('id', user.id);
+    if (updateError) throw updateError;
+
+    // 6️⃣ Reflect it in local state
+    setProfile(prev => ({ ...prev, profile_photo_url: publicUrl }));
+    console.log('Upload & DB update successful', uploadData);
+  } catch (err: any) {
+    console.error('Upload failed:', err);
+    alert(`Upload failed: ${err.message}`);
+  } finally {
+    setUploading(false);
+  }
+};
 
   const validateProfile = (): boolean => {
     if (!profile.full_name.trim()) {

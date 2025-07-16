@@ -159,6 +159,7 @@ const handleImageUpload = async (
 
     // 3️⃣ Build a user-scoped path and upload
     const ext = file.name.split('.').pop();
+    console.log('User ID:', user?.id);
     const path = `${user.id}/profile-photo.${ext}`;
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('profile-photos')
